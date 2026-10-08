@@ -1,0 +1,9 @@
+entity_id,label,row_min,row_max,col_min,col_max,anchor_row,anchor_col
+0,Entity0,0,5,0,5,1,1
+1,Entity1,0,5,0,5,1,1
+2,Entity2,0,5,0,5,1,1
+3,Entity3,0,5,0,5,1,1
+4,Entity4,0,5,0,5,1,1
+5,Entity5,0,5,0,5,1,1
+6,Entity6,0,5,0,5,1,1
+7,Entity7,0,5,0,5,1,1

@@ -1,0 +1,16 @@
+Variable_Name,Variable_Type,Lower_Bound,Upper_Bound,Objective_Coefficient
+x1,continuous,0,100,1
+x2,continuous,0,100,1
+x3,continuous,0,100,1
+x4,continuous,0,100,1
+x5,continuous,0,100,1
+x6,continuous,0,100,1
+x7,continuous,0,100,1
+x8,continuous,0,100,1
+x9,continuous,0,100,1
+x10,continuous,0,100,1
+x11,continuous,0,100,1
+x12,continuous,0,100,1
+x13,continuous,0,100,1
+x14,continuous,0,100,1
+x15,continuous,0,100,1

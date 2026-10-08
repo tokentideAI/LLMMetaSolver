@@ -1,0 +1,17 @@
+commodity_id,node_id,net_inflow
+a,b,10
+a,c,7
+b,b,10
+b,c,7
+c,f,5
+c,g,8
+d,a,15
+d,h,12
+e,a,10
+e,b,12
+f,c,11
+f,d,9
+g,e,10
+g,f,8
+h,g,7
+h,h,6
