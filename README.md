@@ -140,7 +140,8 @@ response = model.generate(prompt, sampling_params)
 print(response[0].outputs[0].text)
 ```
 
-For exact-solver problems, the generated script's final output line should be `print("Result:", objective_value)`, where `objective_value` is the actual computed objective value. Extract the code block and execute it with `python3` (Gurobi license required for `exact_solver` responses).
+For exact-solver problems, the generated script's final output line should be `print("Result:", objective_value)`, where `objective_value` is the actual computed objective value. Extract the code block and execute it with `python3`.
+A Gurobi license is required for the MILPLib-NL benchmark; the free edition is sufficient for the other benchmarks.
 
 
 
