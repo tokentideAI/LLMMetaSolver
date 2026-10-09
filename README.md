@@ -12,8 +12,8 @@ We introduce **Strategy-Diverse Reinforcement Learning (SDRL)**, a framework tha
 Instead of committing to a single solver-integrated paradigm, the model adaptively routes each problem to the most appropriate computational strategy:
 
 1. **Exact Solver (Gurobi)** for compact LP/MILP formulations with tractable scale
-2. **Exact Combinatorial Algorithm** (DP / greedy / graph / backtracking) for problems with exploitable structure
-3. **Metaheuristic Search** (ALNS, GRASP, local search, simulated annealing) for large-scale NP-hard instances
+2. **Exact Combinatorial Algorithm** (such as DP / greedy / graph / backtracking) for problems with exploitable structure
+3. **Heuristic Search** (such as ALNS, GRASP, local search, simulated annealing) for large-scale NP-hard instances
 
 SDRL leverages the empirical complementarity of these three strategy families through a **correctness-gated hierarchical diversity reward** that promotes exploration both across strategies and within each strategy, preventing premature strategy collapse. A **mixed-format training scheme** jointly supports self-contained textual problems and file-grounded industrial instances whose data is distributed across external files.
 
