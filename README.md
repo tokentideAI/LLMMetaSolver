@@ -60,12 +60,12 @@ The performance metrics are as follows:
 
 ## Inference
 
-We recommend using the strategy-routing meta-solver prompt below (from `prompt_templates.py` in our evaluation suite). Replace `{question}` with the natural-language OR problem.
+We recommend using the strategy-routing meta-solver prompt below (from `eval/prompt.py` in our evaluation suite). Replace `{question}` with the natural-language OR problem.
 
 ### System prompt
 
 ```text
-You are an expert Operations Research Engineer and Algorithm Designer.
+You are an expert Operations Research (OR) Engineer and Algorithm Designer.
 Your task is to analyze optimization problems, dynamically route them to the single most appropriate solution paradigm based on their mathematical characteristics and scale, and implement the solution in Python.
 
 ### Step 1: Problem Analysis
@@ -78,7 +78,7 @@ Briefly analyze the problem based on the following dimensions:
 Based on the analysis, strictly select ONE of the following strategies:
 1. Exact Solver (Gurobi):
    - CHOOSE IF: The problem is a clearly defined Linear Programming (LP), Mixed-Integer Linear Programming (MILP), or Convex Quadratic problem, AND the scale is manageable (small to medium).
-   - IMPLEMENTATION: Write rigorous mathematical formulation using `gurobipy`. Start code with: `import gurobipy as gp` / `from gurobipy import GRB`
+   - IMPLEMENTATION: Write rigorous mathematical formulation using `gurobipy`. Start code with: `import gurobipy as gp\nfrom gurobipy import GRB`
 2. Algorithmic Design (DP/Greedy/Graph):
    - CHOOSE IF: The problem exhibits optimal substructure, overlapping subproblems, or standard graph properties (e.g., Knapsack, Shortest Path, Interval Scheduling).
    - IMPLEMENTATION: Use Dynamic Programming, Greedy, Divide-and-Conquer, or Backtracking.
@@ -88,11 +88,9 @@ Based on the analysis, strictly select ONE of the following strategies:
 
 ### Step 3: Output Format
 You must structure your response exactly as follows:
-First, output exactly one strategy tag on its own first line, using one of:
-<strategy>exact_solver</strategy>
-<strategy>algorithmic_design</strategy>
-<strategy>metaheuristic</strategy>
-Then output your step-by-step reasoning (Analysis and Routing Decision). Finally, output the complete, executable Python code in a single code block starting with ```python
+1. First, output your step-by-step reasoning (Analysis & Routing Decision).
+2. Finally, output the complete, executable Python code in a single code block starting with ```python
+3. The absolute final line of your Python script must be exactly: `print("Result:", objective_value)` (replace objective_value with your final computed variable)."""
 ```
 
 ### Quick start
@@ -101,7 +99,7 @@ Then output your step-by-step reasoning (Analysis and Routing Decision). Finally
 from transformers import AutoTokenizer
 from vllm import LLM, SamplingParams
 
-MODEL_ID = "your-username/ORStar-SDRL-4B"  # replace with the actual repo id
+MODEL_ID = "tokentideAI/SDRL-Qwen3-4B"  # replace with the actual repo id
 
 SYSTEM_PROMPT = """..."""  # paste the full system prompt above
 
@@ -124,13 +122,13 @@ sampling_params = SamplingParams(
     n=1,
     temperature=0.5,
     top_p=0.95,
-    max_tokens=8192,
+    max_tokens=16384,
     repetition_penalty=1.02,
 )
 
 messages = [
     {"role": "system", "content": SYSTEM_PROMPT.strip()},
-    {"role": "user", "content": f"Solve the following algorithm design and optimization problem:\n{question}\n\nReason step by step to derive the logic before writing the script. After thinking, explain your algorithmic strategy. Finally, output the complete code block starting with ```python.\n/no_think"},
+    {"role": "user", "content": f"Solve the following algorithm design and optimization problem:\n{question}\n\nReason step-by-step to derive the modeling process and strategy selection, then generate the corresponding Python script.\n/no_think"},
 ]
 
 prompt = tokenizer.apply_chat_template(
@@ -147,7 +145,7 @@ A Gurobi license is required for the MILPLib-NL benchmark; the free edition is s
 
 ## Citation
 
-If you find the proposed SDLR framework useful or relevant to your research, please consider citing our paper:
+If you find the proposed SDRL framework useful or relevant to your research, please consider citing our paper:
 
 ```bibtex
 @article{zhang2026llm,
