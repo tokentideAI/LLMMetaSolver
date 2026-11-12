@@ -1,0 +1,16 @@
+# FrontierOR model registry for self-hosted OpenAI-compatible endpoints (e.g. vLLM).
+# Selected with FRONTIER_OR_ONESHOT_CONFIG; the endpoint comes from FRONTIER_OR_LLM_BASE_URL.
+# Each entry is the vLLM --served-model-name; one model per evaluation run.
+models:
+  - "sdrl-qwen3-32b"
+  - "sdrl-qwen3-4b"
+
+model_results:
+  sdrl-qwen3-32b: {name: "SDRL-Qwen3-32B", csv: "eval/eval_results_sdrl-qwen3-32b.csv"}
+  sdrl-qwen3-4b: {name: "SDRL-Qwen3-4B", csv: "eval/eval_results_sdrl-qwen3-4b.csv"}
+
+# Servers run with max_model_len 32768; FrontierOR prompts are <= ~5.6k tokens (Qwen3
+# tokenizer), so cap generation explicitly instead of relying on the remaining context.
+model_generation:
+  sdrl-qwen3-32b: {max_completion_tokens: 24576}
+  sdrl-qwen3-4b: {max_completion_tokens: 24576}
