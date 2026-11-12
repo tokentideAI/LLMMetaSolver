@@ -441,6 +441,9 @@ def check_result_detail(
         },
     }
 
+    if item.get("benchmark") == "EoH" or item.get("data_source") == "EoH":
+        raise ValueError("Use eoh_eval/judge.py for EoH gap evaluation")
+
     sub_answer, expected_status = parse_expected_answer(item.get('en_answer'))
     if expected_status and expected_status != "infeasible":
         detail["answer_parse_error"] = expected_status

@@ -66,6 +66,26 @@ The performance metrics are as follows:
 
 
 
+## EoH evaluation
+
+The additional [EoH task set](test_data/eoh_eval.jsonl) contains 18 instances
+(online bin packing, TSP, and flow shop scheduling) with 30 input CSVs in
+`test_data/eoh_instances/`. Its separate evaluator reports **relative gap (%)**,
+with a default 3600-second execution limit and support for returned incumbents
+without requiring proof of optimality.
+
+```bash
+CUDA_VISIBLE_DEVICES=0 MODEL_NAME="$PWD/models/eval-model" \
+  OUTPUT_PATH=outputs/eoh TENSOR_PARALLEL_SIZE=1 \
+  SEED=1 NUM_SAMPLES=1 TEMPERATURE=0.5 bash eoh_eval/inference.sh
+
+INPUT_PATH=outputs/eoh bash eoh_eval/judge.sh
+```
+
+See [eoh_eval/README.md](eoh_eval/README.md) for setup, gap aggregation, timeout
+handling, and limitations. Use this separate judge for EoH; it does not use
+correctness or Pass@K scoring.
+
 ## Inference
 
 We recommend using the strategy-routing meta-solver prompt below (from `eval/prompt.py` in our evaluation suite). Replace `{question}` with the natural-language OR problem.
