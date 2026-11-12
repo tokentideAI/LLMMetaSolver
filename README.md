@@ -67,7 +67,7 @@ The performance metrics are as follows:
 
 *Note: \* denotes results from original or reproduced papers.*
 
-### Evaluation on the calssical LLMs for optimization benchmark
+### Evaluation on the LLM-based AAD tasks
 We further investigate whether SDRL's strategy-diverse training paradigm transfers beyond natural-language optimization modeling to Automatic Algorithm Design (AAD) tasks.
 In particular, we present a direct  comparison with Evolution of Heuristics (EoH) task on the first fit setting, evaluating the ability of LLMs to generate effective optimization algorithms and discover high-quality solutions.
 
