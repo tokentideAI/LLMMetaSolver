@@ -23,6 +23,14 @@ SDRL leverages the empirical complementarity of these three strategy families th
 - **[2026.09.28]** 📄 **Paper Release:** Our paper [LLMs as Adaptive Meta-Solvers: Strategy-Diverse RL for Industrial-Scale Optimization](https://arxiv.org/abs/2609.34427) is now published on arXiv.
 
 
+## Training data
+
+The cleaned training subset contains **20,320 instances**, including self-contained
+and file-grounded optimization problems. Download [data/train.parquet](https://github.com/tokentideAI/LLMMetaSolver/raw/refs/heads/main/data/train.parquet)
+(22.2 MiB), or clone this repository. No Git LFS or shard restoration is required.
+See [data/README.md](data/README.md) for the schema, embedded CSV assets, loading
+example, and checksum.
+
 ## Evaluation
 We evaluate on seven NL-to-Opt benchmarks: NL4Opt,
 MAMO-EasyLP and MAMO-ComplexLP, IndustryOR,
