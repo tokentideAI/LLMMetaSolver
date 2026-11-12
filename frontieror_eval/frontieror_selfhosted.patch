@@ -1,0 +1,290 @@
+diff --git a/one_shot_eval.py b/one_shot_eval.py
+index 56254cf..278081c 100644
+--- a/one_shot_eval.py
++++ b/one_shot_eval.py
+@@ -161,8 +161,14 @@ def _shutdown_instance_pool():
+ _GUROBI_RESULTS_ALL = os.path.join(ROOT_DIR, "gurobi_results_all_new.csv")
+ 
+ 
++
++def _oneshot_config_path():
++    """Model registry path; FRONTIER_OR_ONESHOT_CONFIG points it at another YAML
++    (e.g. a registry of self-hosted OpenAI-compatible endpoints)."""
++    return os.environ.get("FRONTIER_OR_ONESHOT_CONFIG") or os.path.join(ROOT_DIR, "configs", "oneshot.yaml")
++
+ def _load_model_results_registry():
+-    config_path = os.path.join(ROOT_DIR, "configs", "oneshot.yaml")
++    config_path = _oneshot_config_path()
+     try:
+         with open(config_path, encoding="utf-8") as handle:
+             config = yaml.safe_load(handle) or {}
+@@ -183,7 +189,7 @@ def _model_results_csv(model_short):
+ 
+ def _model_generation_options(model):
+     """Return allow-listed OpenRouter generation options for one model."""
+-    config_path = os.path.join(ROOT_DIR, "configs", "oneshot.yaml")
++    config_path = _oneshot_config_path()
+     try:
+         with open(config_path, encoding="utf-8") as handle:
+             config = yaml.safe_load(handle) or {}
+@@ -191,7 +197,9 @@ def _model_generation_options(model):
+         return {}
+     model_short = model.rsplit("/", 1)[-1]
+     configured = (config.get("model_generation") or {}).get(model_short, {})
+-    allowed = {"max_completion_tokens", "reasoning_effort"}
++    # repetition/presence/frequency penalties: vLLM sampling extras (self-hosted models only).
++    allowed = {"max_completion_tokens", "reasoning_effort",
++               "repetition_penalty", "presence_penalty", "frequency_penalty"}
+     return {key: value for key, value in configured.items() if key in allowed}
+ 
+ 
+@@ -421,7 +429,7 @@ Do NOT implement your own logging mechanism. Prefer `logger.log_solution(objecti
+ """
+ 
+ def load_config(*, require_api_key=True):
+-    config_path = os.path.join(ROOT_DIR, "configs", "oneshot.yaml")
++    config_path = _oneshot_config_path()
+     keys_path = os.path.join(ROOT_DIR, "configs", "api_keys.yaml")
+     if not os.path.exists(config_path):
+         print(f"ERROR: {config_path} not found. Create it with the 'models' list.")
+@@ -549,7 +557,8 @@ def _add_token_usage(total, extra):
+         reasons.append(reason)
+ 
+ 
+-def _repair_missing_code_block(raw_reply, config, model, *, truncated=False):
++def _repair_missing_code_block(raw_reply, config, model, *, truncated=False,
++                               log_path=None, stage="format_repair"):
+     """Ask the same model to reformat a no-code-block reply into exactly one
+     Python fenced block. This is intended for reasoning models that place the
+     program in reasoning/prose but fail the output format."""
+@@ -576,6 +585,8 @@ def _repair_missing_code_block(raw_reply, config, model, *, truncated=False):
+             config,
+             model,
+             temperature=0,
++            log_path=log_path,
++            stage=stage,
+         )
+         _add_token_usage(token_usage, usage)
+     except Exception as e:
+@@ -609,7 +620,67 @@ def _resolve_openrouter_api_key(config, model):
+     return config["OPENROUTER_API_KEY"]
+ 
+ 
+-def call_openrouter(messages, config, model, temperature=None):
++def _apply_prompt_overrides(messages):
++    """Optional prompt wrapping for self-hosted models (unset = original FrontierOR prompt).
++
++    FRONTIER_OR_SYSTEM_PROMPT_FILE: prepended as a system message (e.g. the SDRL
++    strategy-routing system prompt). FRONTIER_OR_USER_SUFFIX: appended to every
++    user message (e.g. "/no_think" for Qwen3 hybrid-thinking chat templates).
++    """
++    system_file = os.environ.get("FRONTIER_OR_SYSTEM_PROMPT_FILE")
++    suffix = os.environ.get("FRONTIER_OR_USER_SUFFIX", "")
++    if not system_file and not suffix:
++        return messages
++    out = []
++    if system_file and not (messages and messages[0].get("role") == "system"):
++        out.append({"role": "system", "content": Path(system_file).read_text(encoding="utf-8").strip()})
++    for m in messages:
++        if suffix and m.get("role") == "user" and isinstance(m.get("content"), str):
++            m = {**m, "content": m["content"].rstrip() + "\n" + suffix}
++        out.append(m)
++    return out
++
++
++def _save_raw_response(log_path, stage, model, payload, data, latency_s):
++    """Append one raw LLM exchange to ``log_path`` (JSONL, one object per call).
++
++    Stores the exact request messages sent (after prompt overrides), the full
++    response text before code extraction (content plus any reasoning field),
++    finish_reason and usage. On by default; FRONTIER_OR_SAVE_RESPONSES=0 disables.
++    """
++    if not log_path or os.environ.get("FRONTIER_OR_SAVE_RESPONSES", "1") == "0":
++        return
++    try:
++        choice = (data.get("choices") or [{}])[0]
++        msg = choice.get("message") or {}
++        rec = {
++            "time": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
++            "stage": stage,
++            "model": model,
++            "response_id": data.get("id"),
++            "served_model": data.get("model"),
++            "request": {k: v for k, v in payload.items() if k != "messages"},
++            "messages": payload.get("messages"),
++            "content": msg.get("content"),
++            "reasoning": msg.get("reasoning") or msg.get("reasoning_content"),
++            "finish_reason": choice.get("finish_reason"),
++            "usage": data.get("usage"),
++            "latency_s": round(latency_s, 2),
++        }
++        Path(log_path).parent.mkdir(parents=True, exist_ok=True)
++        with open(log_path, "a", encoding="utf-8") as handle:
++            fcntl.flock(handle, fcntl.LOCK_EX)
++            handle.write(json.dumps(rec, ensure_ascii=False) + "\n")
++    except Exception as exc:  # never let logging break the eval
++        print(f"[save-response] failed to record response: {type(exc).__name__}: {exc}")
++
++
++def _response_log_path(path_in_task_dir):
++    """responses.jsonl next to a code/attempt file of the same paper/model dir."""
++    return os.path.join(os.path.dirname(os.path.abspath(path_in_task_dir)), "responses.jsonl")
++
++
++def call_openrouter(messages, config, model, temperature=None, *, log_path=None, stage=None):
+     """Call OpenRouter chat completions API.
+     Returns (content, usage_dict) where usage_dict has prompt_tokens, completion_tokens.
+ 
+@@ -622,23 +693,30 @@ def call_openrouter(messages, config, model, temperature=None):
+     its default avoids capping reasoning-model budgets too low (gemini
+     breakage mode) while the ``content`` → ``reasoning`` fallback already
+     handles providers that deliver nothing in ``content``."""
+-    url = "https://openrouter.ai/api/v1/chat/completions"
++    # FRONTIER_OR_LLM_BASE_URL / FRONTIER_OR_LLM_API_KEY redirect the call to any
++    # OpenAI-compatible endpoint (e.g. a self-hosted vLLM server); unset = OpenRouter.
++    base_url = os.environ.get("FRONTIER_OR_LLM_BASE_URL", "https://openrouter.ai/api/v1").rstrip("/")
++    url = f"{base_url}/chat/completions"
++    api_key = os.environ.get("FRONTIER_OR_LLM_API_KEY") or _resolve_openrouter_api_key(config, model)
+     headers = {
+-        "Authorization": f"Bearer {_resolve_openrouter_api_key(config, model)}",
++        "Authorization": f"Bearer {api_key}",
+         "Content-Type": "application/json",
+     }
+     payload = {
+         "model": model,
+-        "messages": messages,
++        "messages": _apply_prompt_overrides(messages),
+     }
+     payload.update(_model_generation_options(model))
+     if temperature is not None:
+         payload["temperature"] = temperature
+-    resp = requests.post(url, headers=headers, json=payload, timeout=300)
++    t_req = time.time()
++    resp = requests.post(url, headers=headers, json=payload,
++                         timeout=float(os.environ.get("FRONTIER_OR_LLM_TIMEOUT", "300")))
+     if resp.status_code >= 400:
+         print(f"  [call_openrouter] HTTP {resp.status_code} body: {resp.text[:800]}")
+     resp.raise_for_status()
+     data = resp.json()
++    _save_raw_response(log_path, stage, model, payload, data, time.time() - t_req)
+     audit_root = os.environ.get("FRONTIER_OR_ONESHOT_USAGE_ROOT")
+     if audit_root:
+         paper = os.environ.get("FRONTIER_OR_ONESHOT_USAGE_PAPER", "unknown")
+@@ -672,7 +750,8 @@ def call_openrouter(messages, config, model, temperature=None):
+             f"(finish_reason={finish_reason!r}, no content or reasoning text)"
+         )
+     usage = data.get("usage", {})
+-    cached_tokens = usage.get("cached_tokens", 0) or usage.get("prompt_tokens_details", {}).get("cached_tokens", 0)
++    # vLLM returns "prompt_tokens_details": null (OpenRouter returns a dict).
++    cached_tokens = usage.get("cached_tokens", 0) or (usage.get("prompt_tokens_details") or {}).get("cached_tokens", 0)
+     return content, {
+         "prompt_tokens": usage.get("prompt_tokens", 0),
+         "completion_tokens": usage.get("completion_tokens", 0),
+@@ -1717,11 +1796,14 @@ def _generate_initial_code(prompt, config, model, code_path, attempt0_path,
+     """
+     token_usage = {"prompt_tokens": 0, "completion_tokens": 0, "cached_tokens": 0}
+     messages = [{"role": "user", "content": prompt}]
++    log_path = _response_log_path(attempt0_path)
+     for init_attempt in range(init_gen_max):
+         print(f"\n  [init-gen {init_attempt + 1}/{init_gen_max}] Calling LLM to generate code_v0...")
+         transient_err = None
+         try:
+-            assistant_reply, usage = call_openrouter(messages, config, model)
++            assistant_reply, usage = call_openrouter(
++                messages, config, model, log_path=log_path,
++                stage=f"init_gen_{init_attempt + 1}")
+             _add_token_usage(token_usage, usage)
+         except Exception as e:
+             transient_err = f"LLM API error: {e}"
+@@ -1732,7 +1814,8 @@ def _generate_initial_code(prompt, config, model, code_path, attempt0_path,
+                 reason = "Truncated response" if truncated else "No code block in response"
+                 print(f"  [init-gen {init_attempt + 1}] {reason}; trying format repair...")
+                 code, repair_usage = _repair_missing_code_block(
+-                    assistant_reply, config, model, truncated=truncated
++                    assistant_reply, config, model, truncated=truncated,
++                    log_path=log_path, stage=f"init_gen_{init_attempt + 1}_format_repair",
+                 )
+                 _add_token_usage(token_usage, repair_usage)
+             if code is None:
+@@ -1768,7 +1851,9 @@ def generate_candidate_code(prompt, config, model, output_dir, candidate_id,
+     for attempt in range(init_gen_max):
+         try:
+             assistant_reply, usage = call_openrouter(
+-                messages, config, model, temperature=temperature
++                messages, config, model, temperature=temperature,
++                log_path=os.path.join(output_dir, "responses.jsonl"),
++                stage=f"candidate_{candidate_id}_gen_{attempt + 1}",
+             )
+             _add_token_usage(token_usage, usage)
+         except Exception as e:
+@@ -1783,7 +1868,9 @@ def generate_candidate_code(prompt, config, model, output_dir, candidate_id,
+             print(f"  [candidate {candidate_id} gen {attempt + 1}/{init_gen_max}] "
+                   f"{reason}; trying format repair...")
+             code, repair_usage = _repair_missing_code_block(
+-                assistant_reply, config, model, truncated=truncated
++                assistant_reply, config, model, truncated=truncated,
++                log_path=os.path.join(output_dir, "responses.jsonl"),
++                stage=f"candidate_{candidate_id}_gen_{attempt + 1}_format_repair",
+             )
+             _add_token_usage(token_usage, repair_usage)
+         if code is None:
+@@ -1830,8 +1917,11 @@ def _self_correct_once(prompt, cur_code, errors_str, config, model,
+         {"role": "assistant", "content": f"```python\n{cur_code}\n```"},
+         {"role": "user", "content": feedback},
+     ]
++    log_path = _response_log_path(attempt_path)
++    stage = "correct_" + os.path.splitext(os.path.basename(attempt_path))[0]
+     try:
+-        assistant_reply, usage = call_openrouter(messages, config, model)
++        assistant_reply, usage = call_openrouter(messages, config, model,
++                                                 log_path=log_path, stage=stage)
+         _add_token_usage(token_usage, usage)
+     except Exception as e:
+         print(f"  self-correction LLM API error: {e}")
+@@ -1842,7 +1932,8 @@ def _self_correct_once(prompt, cur_code, errors_str, config, model,
+         reason = "truncated response" if truncated else "no code block in response"
+         print(f"  self-correction: {reason}; trying format repair")
+         new_code, repair_usage = _repair_missing_code_block(
+-            assistant_reply, config, model, truncated=truncated
++            assistant_reply, config, model, truncated=truncated,
++            log_path=log_path, stage=stage + "_format_repair",
+         )
+         _add_token_usage(token_usage, repair_usage)
+     if new_code is None:
+diff --git a/trusted_eval_infra/execution.py b/trusted_eval_infra/execution.py
+index 209bc44..0f7395c 100644
+--- a/trusted_eval_infra/execution.py
++++ b/trusted_eval_infra/execution.py
+@@ -554,8 +554,21 @@ def _instance_sandbox(instance_path):
+         shutil.rmtree(tmp_root, ignore_errors=True)
+ 
+ 
++def _candidate_time_reserve():
++    """FRONTIER_OR_CANDIDATE_TIME_RESERVE (seconds, default 0 = original behaviour):
++    tell the candidate program ``time_limit - reserve`` while the hard kill deadline
++    stays at ``time_limit``. An analysis variant, not the FrontierOR paper protocol."""
++    try:
++        return max(0, int(os.environ.get("FRONTIER_OR_CANDIDATE_TIME_RESERVE", "0") or 0))
++    except ValueError:
++        return 0
++
++
+ def _build_args(code_path, instance_path, solution_path, time_limit, log_path):
+     """Build the common argparse arguments for the generated code."""
++    reserve = _candidate_time_reserve()
++    if reserve:
++        time_limit = max(1, int(float(time_limit)) - reserve)
+     args = [
+         "--instance_path", instance_path,
+         "--solution_path", solution_path,
+@@ -743,7 +756,9 @@ def build_docker_cmd(code_path, instance_path, solution_path, time_limit,
+     gurobi_lic = cfg.get("gurobi_lic", os.environ.get("GRB_LICENSE_FILE", ""))
+     anti_hack = bool(cfg.get("anti_hack"))
+     candidate_time_limit = time_limit
+-    if anti_hack:
++    if _candidate_time_reserve():
++        candidate_time_limit = max(1, int(float(time_limit)) - _candidate_time_reserve())
++    elif anti_hack:
+         # The trusted host deadline includes Docker startup and output
+         # promotion. Give untrusted code a slightly smaller integer budget so
+         # a solver that honors its CLI limit can serialize before that hard
