@@ -19,6 +19,8 @@ SDRL leverages the empirical complementarity of these three strategy families th
 
 ## 📢 News & Updates
 
+- **[2026.11.12]** 🔬 Dataset & Evaluation Update: We release the training dataset and extend our evaluation to Automatic Algorithm Design (AAD) and FrontierOR benchmarks, providing new results on LLM-driven algorithm discovery and feasibility verification across challenging optimization problems.
+
 - **[2026.10.08]** 🚀 **Model & Code Release:** Model checkpoint and benchmark inference code are now available on [GitHub](https://github.com/tokentideAI/LLMMetaSolver) and Hugging Face ([SDRL-Qwen3-4B](https://huggingface.co/tokentideAI/SDRL-Qwen3-4B) & [SDRL-Qwen3-32B](https://huggingface.co/tokentideAI/SDRL-Qwen3-32B)).
 - **[2026.09.28]** 📄 **Paper Release:** Our paper [LLMs as Adaptive Meta-Solvers: Strategy-Diverse RL for Industrial-Scale Optimization](https://arxiv.org/abs/2609.34427) is now published on arXiv.
 
@@ -32,6 +34,7 @@ See [data/README.md](data/README.md) for the schema, embedded CSV assets, loadin
 example, and checksum.
 
 ## Evaluation
+### Evaluation on the calssical LLMs for optimization modeling benchmark
 We evaluate on seven NL-to-Opt benchmarks: NL4Opt,
 MAMO-EasyLP and MAMO-ComplexLP, IndustryOR,
 OptMATH-Bench, OptiBench, and MIPLIB-NL (Li et al., 2026).
@@ -64,6 +67,15 @@ The performance metrics are as follows:
 
 *Note: \* denotes results from original or reproduced papers.*
 
+### Evaluation on the calssical LLMs for optimization benchmark
+We further investigate whether SDRL's strategy-diverse training paradigm transfers beyond natural-language optimization modeling to Automatic Algorithm Design (AAD) tasks.
+In particular, we present a direct  comparison with Evolution of Heuristics (EoH) task on the first fit setting, evaluating the ability of LLMs to generate effective optimization algorithms and discover high-quality solutions.
+
+
+### Evaluation on the frontierOR benchmark
+We further evaluate SDRL on FrontierOR, a benchmark featuring computationally challenging optimization problems with diverse structures and practical requirements.
+Unlike conventional objective-based evaluations, FrontierOR explicitly incorporates independent feasibility verification alongside objective-based performance assessment.
+All experiments follow the default evaluation setting, with a 3,600-second time limit per instance.
 
 
 ## EoH evaluation
