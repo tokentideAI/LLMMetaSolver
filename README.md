@@ -71,11 +71,58 @@ The performance metrics are as follows:
 We further investigate whether SDRL's strategy-diverse training paradigm transfers beyond natural-language optimization modeling to Automatic Algorithm Design (AAD) tasks.
 In particular, we present a direct  comparison with Evolution of Heuristics (EoH) task on the first fit setting, evaluating the ability of LLMs to generate effective optimization algorithms and discover high-quality solutions.
 
+**Table 1. Online bin packing: excess bins over the lower bound (%). Lower is better.**
 
-### Evaluation on the frontierOR benchmark
+| Method | 1k_C100 | 5k_C100 | 10k_C100 | 1k_C500 | 5k_C500 | 10k_C500 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| First Fit | 5.32 | 4.40 | 4.44 | 4.97 | 4.27 | 4.28 |
+| Best Fit | 4.87 | 4.08 | 4.09 | 4.50 | 3.91 | 3.95 |
+| FunSearch | 3.78 | 0.80 | 0.33 | 6.75 | 1.47 | 0.74 |
+| EoH | 2.24 | 0.80 | 0.61 | 2.13 | 0.78 | 0.61 |
+| SDRL (Ours) | 0.709 | 0.432 | 0.313 | 0.000 | 0.000 | 0.000 |
+
+**Table 2. Traveling salesman problem: distance gap to the best-known solution (%). Lower is better.**
+
+| Method | rd100 | pr124 | bier127 | kroA150 | u159 | kroB200 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| NI | 19.91 | 15.50 | 23.21 | 18.17 | 23.59 | 24.10 |
+| FI | 9.38 | 4.43 | 8.04 | 8.54 | 11.15 | 7.54 |
+| OR-Tools | 0.01 | 0.55 | 0.66 | 0.02 | 1.75 | 2.57 |
+| AM | 3.41 | 3.68 | 5.91 | 3.78 | 7.55 | 7.11 |
+| POMO | 0.01 | 0.60 | 13.72 | 0.70 | 0.95 | 1.58 |
+| LEHD | 0.01 | 1.11 | 4.76 | 1.40 | 1.13 | 0.64 |
+| EoH | 0.01 | 0.00 | 0.42 | 0.00 | 0.00 | 0.20 |
+| SDRL (Ours) | 0.000 | 2.370 | 1.084 | 0.980 | 0.000 | 3.737 |
+
+**Table 3. Flow shop scheduling: relative makespan gap (%). Lower is better.**
+
+| Method | n20m10 | n20m20 | n50m10 | n50m20 | n100m10 | n100m20 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| GUPTA | 23.42 | 21.79 | 20.11 | 22.78 | 15.03 | 21.00 |
+| CDS | 12.87 | 10.35 | 12.72 | 15.03 | 9.36 | 13.55 |
+| NEH | 4.05 | 3.06 | 3.47 | 5.48 | 2.07 | 3.58 |
+| NEHFF | 4.15 | 2.72 | 3.62 | 5.10 | 1.88 | 3.73 |
+| PFSPNet | 14.78 | 14.69 | 11.95 | 16.95 | 8.21 | 16.47 |
+| PFSPNet-NEH | 4.04 | 2.96 | 3.48 | 5.05 | 1.72 | 3.56 |
+| EoH | 0.30 | 0.10 | 0.19 | 0.60 | 0.14 | 0.41 |
+| SDRL (Ours) | 2.276 | 1.698 | 7.041 | 4.361 | 1.317 | 4.057 |
+
+### Evaluation on the FrontierOR benchmark
 We further evaluate SDRL on FrontierOR, a benchmark featuring computationally challenging optimization problems with diverse structures and practical requirements.
 Unlike conventional objective-based evaluations, FrontierOR explicitly incorporates independent feasibility verification alongside objective-based performance assessment.
 All experiments follow the default evaluation setting, with a 3,600-second time limit per instance.
+
+| Model | Full Execution | Full Feasibility | Full Solution quality | Full QTE | Hard Execution | Hard Feasibility | Hard Solution quality | Hard QTE |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Claude Opus 4.6 | 0.93 | 0.62 | 0.48 | 0.31 | 0.94 | 0.60 | 0.44 | 0.32 |
+| GPT-5.3-Codex | 0.98 | 0.60 | 0.48 | 0.26 | 0.98 | 0.49 | 0.30 | 0.18 |
+| Gemini 3.1 Pro | 0.93 | 0.61 | 0.52 | 0.25 | 1.00 | 0.64 | 0.44 | 0.22 |
+| DeepSeek-R1 | 0.74 | 0.42 | 0.31 | 0.17 | 0.82 | 0.37 | 0.20 | 0.11 |
+| Grok-4.20-beta | 0.74 | 0.28 | 0.22 | 0.13 | 0.76 | 0.20 | 0.14 | 0.06 |
+| Qwen3-Coder-Plus | 0.60 | 0.26 | 0.20 | 0.09 | 0.52 | 0.21 | 0.12 | 0.07 |
+| LLaMA-4-Maverick | 0.47 | 0.18 | 0.13 | 0.06 | 0.52 | 0.13 | 0.07 | 0.02 |
+| SIR-RL-Qwen3-32B | 0.86 | 0.22 | 0.15 | 0.09 | 0.82 | 0.15 | 0.12 | 0.10 |
+| SDRL-Qwen3-32B | 0.90 | 0.33 | 0.26 | 0.18 | 0.88 | 0.29 | 0.22 | 0.22 |
 
 
 ## EoH evaluation
